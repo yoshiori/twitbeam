@@ -1,0 +1,6 @@
+[package]
+name = "twitbeam"
+version = "0.1.0"
+authors = ["Yoshiori SHOJI <yoshiori@gmail.com>"]
+
+[dependencies]
