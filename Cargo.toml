@@ -5,3 +5,4 @@ authors = ["Yoshiori SHOJI <yoshiori@gmail.com>"]
 
 [dependencies]
 hyper = "0.10.10"
+hyper-native-tls = "0.2.2"
