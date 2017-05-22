@@ -10,6 +10,8 @@ use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
 use hyper::header::{Authorization, Bearer};
+use hyper::client::RequestBuilder;
+use hyper::client::response::Response;
 use serde_json::Value;
 use regex::Regex;
 
@@ -31,29 +33,30 @@ impl TwitBeam {
     }
 
     fn toot(&self, text: &str) {
-        self.client.post(&format!("{}/api/v1/statuses", &self.api_server))
-            .header(
-                Authorization(
-                        Bearer {
-                            token: self.access_token.clone(),
-                        }
-                )
-            ).body(&format!("status={}", text)).send().unwrap();
+        self.send(
+            self.client.post(&format!("{}/api/v1/statuses", &self.api_server))
+                .body(&format!("status={}", text))
+        ).unwrap();
     }
 
     fn home(&self) -> Value {
-        let mut res = self.client.get(&format!("{}/api/v1/timelines/home", &self.api_server))
-            .header(
-                Authorization(
-                        Bearer {
-                            token: self.access_token.clone(),
-                        }
-                )
-            ).send().unwrap();
+        let mut res = self.send(
+            self.client.get(&format!("{}/api/v1/timelines/home", &self.api_server))
+        ).unwrap();
         let mut body = String::new();
         res.read_to_string(&mut body).unwrap();
 
         serde_json::from_str(&body).unwrap()
+    }
+
+    fn send(&self, req: RequestBuilder) -> hyper::error::Result<Response> {
+        req.header(
+            Authorization(
+                    Bearer {
+                        token: self.access_token.clone(),
+                    }
+            )
+        ).send()
     }
 }
 
