@@ -1,66 +1,11 @@
-extern crate hyper;
-extern crate hyper_native_tls;
-extern crate serde_json;
 extern crate regex;
 extern crate rustyline;
 
 use std::env;
-use std::io::Read;
-
-use hyper::Client;
-use hyper::net::HttpsConnector;
-use hyper_native_tls::NativeTlsClient;
-use hyper::header::{Authorization, Bearer};
-use hyper::client::RequestBuilder;
-use hyper::client::response::Response;
-use serde_json::Value;
 use regex::Regex;
 use rustyline::Editor;
 
-struct TwitBeam {
-    access_token: String,
-    api_server: String,
-    client: Client,
-}
-
-impl TwitBeam {
-    fn new(access_token: &str, api_server: &str) -> TwitBeam {
-        let tls = NativeTlsClient::new().unwrap();
-        let connector = HttpsConnector::new(tls);
-        TwitBeam {
-            access_token: access_token.to_string(),
-            api_server: api_server.to_string(),
-            client: Client::with_connector(connector),
-        }
-    }
-
-    fn toot(&self, text: &str) {
-        self.send(
-            self.client.post(&format!("{}/api/v1/statuses", &self.api_server))
-                .body(&format!("status={}", text))
-        ).unwrap();
-    }
-
-    fn home(&self) -> Value {
-        let mut res = self.send(
-            self.client.get(&format!("{}/api/v1/timelines/home", &self.api_server))
-        ).unwrap();
-        let mut body = String::new();
-        res.read_to_string(&mut body).unwrap();
-
-        serde_json::from_str(&body).unwrap()
-    }
-
-    fn send(&self, req: RequestBuilder) -> hyper::error::Result<Response> {
-        req.header(
-            Authorization(
-                    Bearer {
-                        token: self.access_token.clone(),
-                    }
-            )
-        ).send()
-    }
-}
+mod twitbeam;
 
 fn main() {
 
@@ -69,10 +14,10 @@ fn main() {
     let re = Regex::new(r#"<(".*?"|'.*?'|[^'"])*?>"#).unwrap();
     let mut rl = Editor::<()>::new();
 
-    let twite_beam = TwitBeam::new(&token, &api_server);
+    let client = twitbeam::Client::new(&token, &api_server);
 
     loop {
-        for v in twite_beam.home().as_array().unwrap().iter().rev() {
+        for v in client.home().as_array().unwrap().iter().rev() {
             let account = v["account"]["acct"].as_str().unwrap();
             let context = re.replace_all(v["content"].as_str().unwrap(), "");
             println!("{: <20} : {}", account, context);
@@ -83,7 +28,7 @@ fn main() {
                 if line.trim().is_empty() {
                 } else {
                     rl.add_history_entry(&line);
-                    twite_beam.toot(&line);
+                    client.toot(&line);
                 }
             },
             Err(err) => {
