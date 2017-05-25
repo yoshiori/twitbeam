@@ -2,9 +2,10 @@ extern crate hyper;
 extern crate hyper_native_tls;
 extern crate serde_json;
 extern crate regex;
+extern crate rustyline;
 
 use std::env;
-use std::io::{self, Write, Read};
+use std::io::Read;
 
 use hyper::Client;
 use hyper::net::HttpsConnector;
@@ -14,6 +15,7 @@ use hyper::client::RequestBuilder;
 use hyper::client::response::Response;
 use serde_json::Value;
 use regex::Regex;
+use rustyline::Editor;
 
 struct TwitBeam {
     access_token: String,
@@ -65,6 +67,7 @@ fn main() {
     let token = env::var("ACCESS_TOKEN").expect("ACCESS_TOKEN not set.");
     let api_server = env::var("API_SERVER").expect("API_SERVER not set.");
     let re = Regex::new(r#"<(".*?"|'.*?'|[^'"])*?>"#).unwrap();
+    let mut rl = Editor::<()>::new();
 
     let twite_beam = TwitBeam::new(&token, &api_server);
 
@@ -74,15 +77,19 @@ fn main() {
             let context = re.replace_all(v["content"].as_str().unwrap(), "");
             println!("{: <20} : {}", account, context);
         }
-
-        let mut text = String::new();
-        print!("> ");
-        io::stdout().flush().unwrap();
-        io::stdin().read_line(&mut text)
-                .expect("Failed to read line");
-        if text.trim().is_empty() {
-        } else {
-            twite_beam.toot(&text);
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                if line.trim().is_empty() {
+                } else {
+                    rl.add_history_entry(&line);
+                    twite_beam.toot(&line);
+                }
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break
+            }
         }
     }
 }
